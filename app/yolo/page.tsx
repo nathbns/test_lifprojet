@@ -8,6 +8,7 @@ import {Play, RotateCcw, X, Settings } from "lucide-react"
 import { GlowingEffect } from "@/components/ui/glowing-effect"
 import { FileUpload } from "@/components/ui/file-upload"
 import { Highlighter } from "@/components/ui/highlighter"
+import Image from "next/image"
 
 interface YoloResult {
   result?: {
@@ -96,9 +97,11 @@ export default function YoloPage() {
                 ) : (
                   <div className="space-y-4">
                     <div className="relative inline-block">
-                      <img 
+                      <Image 
                         src={imageDataUrl} 
                         alt="preview" 
+                        width={320} 
+                        height={240} 
                         className="max-h-80 mx-auto rounded-lg" 
                       />
                       <Button
@@ -221,9 +224,11 @@ export default function YoloPage() {
                       <div className="max-w-2xl">
                         <p className="text-sm font-medium mb-3 text-center">Résultat de détection</p>
                         {(results.result.data[1] as { url?: string })?.url && (
-                          <img 
+                          <Image 
                             src={(results.result.data[1] as { url?: string }).url!} 
                             alt="annotated" 
+                            width={640} 
+                            height={480} 
                             className="w-full rounded-lg border" 
                           />
                         )}

@@ -5,12 +5,13 @@ import { Chess } from "chess.js"
 import { Chessboard } from "react-chessboard"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { RotateCcw, Crown, Trophy, AlertCircle, Palette, Camera, Bot, Upload, X } from "lucide-react"
+import { RotateCcw, Trophy, AlertCircle, Palette, Camera, Bot, X } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { FileUpload } from "@/components/ui/file-upload"
 import { GlowingEffect } from "@/components/ui/glowing-effect"
 import { Highlighter } from "@/components/ui/highlighter"
 import type { Square } from "chess.js"
+import Image from "next/image"
 
 // Thèmes d'échiquier disponibles
 const boardThemes = {
@@ -128,7 +129,7 @@ export default function ChessPage() {
         updateGameStatus(gameCopy)
         
         return true
-      } catch (error) {
+      } catch {
         return false
       }
     },
@@ -171,7 +172,7 @@ export default function ChessPage() {
       <div className="max-w-6xl mx-auto px-8">
         <div className="mb-8 text-center">
           <h1 className="text-4xl font-bold mb-2">
-            Jeu d'{" "}<Highlighter action="highlight" color="#15803d" padding={3}>
+            Jeu d&apos;{" "}<Highlighter action="highlight" color="#15803d" padding={3}>
               Échecs
             </Highlighter>
           </h1>
@@ -219,9 +220,11 @@ export default function ChessPage() {
                     ) : (
                       <div className="space-y-4">
                         <div className="relative inline-block">
-                          <img 
+                          <Image 
                             src={imageDataUrl} 
                             alt="preview" 
+                            width={320}
+                            height={240}
                             className="max-h-80 mx-auto rounded-lg" 
                           />
                           <Button
@@ -233,7 +236,7 @@ export default function ChessPage() {
                             <X className="h-4 w-4" />
                           </Button>
                         </div>
-                        <p className="text-sm text-muted-foreground text-center">Image prête pour l'analyse</p>
+                        <p className="text-sm text-muted-foreground text-center">Image prête pour l&apos;analyse</p>
                       </div>
                     )}
                   </CardContent>
