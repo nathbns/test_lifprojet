@@ -27,14 +27,14 @@ const navigation = [
     icon: YoloIcon,
   },
   {
-    name: "Docs",
-    href: "/docs",
-    icon: DocsIcon,
-  },
-  {
     name: "Chess",
     href: "/chess",
     icon: ChessIcon,
+  },
+  {
+    name: "Docs",
+    href: "/docs",
+    icon: DocsIcon,
   },
 ]
 
@@ -72,8 +72,8 @@ export function Sidebar() {
                     <div
                       className={`flex items-center justify-center h-12 transition-colors duration-150 ${
                         isActive
-                          ? 'text-primary'
-                          : 'text-muted-foreground hover:text-foreground'
+                          ? 'text-[#15803d]'
+                          : 'text-foreground hover:text-foreground'
                       }`}
                     >
                       <Icon />

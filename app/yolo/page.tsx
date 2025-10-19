@@ -69,7 +69,7 @@ export default function YoloPage() {
 
   return (
     <div className="min-h-screen py-8">
-      <div className="max-w-6xl mx-auto px-8 ml-auto">
+      <div className="max-w-6xl mx-auto px-8">
       <div className="mb-8 text-center">
         <h1 className="text-4xl font-bold mb-2">
           Nos modeles{"    "}
