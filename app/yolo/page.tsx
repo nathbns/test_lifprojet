@@ -100,9 +100,10 @@ export default function YoloPage() {
                       <Image 
                         src={imageDataUrl} 
                         alt="preview" 
-                        width={320} 
-                        height={240} 
-                        className="max-h-80 mx-auto rounded-lg" 
+                        width={800} 
+                        height={600} 
+                        className="max-h-80 w-auto h-auto mx-auto rounded-lg" 
+                        style={{ objectFit: 'contain' }}
                       />
                       <Button
                         variant="destructive"
