@@ -8,6 +8,7 @@ import {Play, RotateCcw, X, Settings } from "lucide-react"
 import { FileUpload } from "@/components/ui/file-upload"
 import { Highlighter } from "@/components/ui/highlighter"
 import Image from "next/image"
+import { predictYoloFromSpace } from "@/lib/gradio"
 
 interface YoloResult {
   result?: {
@@ -23,54 +24,33 @@ export default function YoloPage() {
   const [isLoading, setIsLoading] = React.useState(false)
   const [results, setResults] = React.useState<YoloResult | null>(null)
   const [imageDataUrl, setImageDataUrl] = React.useState<string>("")
-  const [imageFile, setImageFile] = React.useState<File | null>(null)
   const [threshold, setThreshold] = React.useState<number>(0.3)
   const [iou, setIou] = React.useState<number>(0.5)
   const [selectedModel, setSelectedModel] = React.useState<"yolov1" | "yolov3">("yolov1")
 
   const handleTest = async () => {
-    if (!imageDataUrl || !imageFile) return
+    if (!imageDataUrl) return
     setIsLoading(true)
     try {
-      // 1. Upload l'image vers Vercel Blob Storage
-      const uploadFormData = new FormData()
-      uploadFormData.append("image", imageFile)
-      
-      const uploadRes = await fetch("/api/upload", {
-        method: "POST",
-        body: uploadFormData,
+      // Appel direct Gradio côté client (évite la limite de taille Vercel)
+      const result = await predictYoloFromSpace(imageDataUrl, {
+        confidence_threshold: threshold,
+        iou_threshold: iou,
+        show_confidence: true,
+        model: selectedModel,
       })
-      
-      if (!uploadRes.ok) {
-        const errorData = await uploadRes.json()
-        throw new Error(errorData.error || "Erreur lors de l'upload de l'image")
+      console.log("Résultats complets:", result)
+      const resultData = result as { data?: Array<unknown> }
+      console.log("Data:", resultData?.data)
+      if (resultData?.data) {
+        console.log("Stats (index 0):", resultData.data[0])
+        console.log("Stats (index 1):", resultData.data[1])
+        console.log("Stats (index 2):", resultData.data[2])
       }
-      
-      const { url: imageUrl } = await uploadRes.json()
-      
-      // 2. Utiliser l'URL pour l'analyse YOLO
-      const res = await fetch("/api/yolo", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          imageUrl,
-          confidence_threshold: threshold,
-          iou_threshold: iou,
-          show_confidence: true,
-          model: selectedModel,
-        }),
-      })
-      const json = await res.json()
-      console.log("Résultats complets:", json)
-      console.log("Data:", json.result?.data)
-      if (json.result?.data) {
-        console.log("Stats (index 0):", json.result.data[0])
-        console.log("Stats (index 1):", json.result.data[1])
-        console.log("Stats (index 2):", json.result.data[2])
-      }
-      setResults(json)
-    } catch {
-      setResults({ error: "Erreur lors de l&apos;appel API" })
+      setResults({ result: resultData as YoloResult['result'] })
+    } catch (error) {
+      console.error("Erreur YOLO:", error)
+      setResults({ error: error instanceof Error ? error.message : "Erreur lors de l&apos;appel API" })
     } finally {
       setIsLoading(false)
     }
@@ -79,14 +59,10 @@ export default function YoloPage() {
   const handleReset = () => {
     setResults(null)
     setImageDataUrl("")
-    setImageFile(null)
   }
 
   const handleFileSelect = (file: File) => {
     if (!file.type.startsWith('image/')) return
-    // Stocker le fichier original pour l'envoi via FormData
-    setImageFile(file)
-    // Aussi créer le data URL pour l'affichage
     const reader = new FileReader()
     reader.onload = () => setImageDataUrl(reader.result as string)
     reader.readAsDataURL(file)
@@ -139,10 +115,7 @@ export default function YoloPage() {
                         variant="destructive"
                         size="sm"
                         className="absolute -top-2 -right-2 h-8 w-8 p-0"
-                        onClick={() => {
-                          setImageDataUrl("")
-                          setImageFile(null)
-                        }}
+                        onClick={() => setImageDataUrl("")}
                       >
                         <X className="h-2 w-2" />
                       </Button>

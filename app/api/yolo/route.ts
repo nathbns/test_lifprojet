@@ -7,20 +7,15 @@ export const runtime = "nodejs";
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { imageUrl, confidence_threshold, iou_threshold, show_confidence, model } = body || {};
-    
-    // Accepter soit imageUrl (depuis Blob Storage) soit imageDataUrl (data URL, pour compatibilité)
-    const imageInput = imageUrl || body.imageDataUrl;
-    
-    if (!imageInput || typeof imageInput !== "string") {
+    const { imageDataUrl, confidence_threshold, iou_threshold, show_confidence, model } = body || {};
+    if (!imageDataUrl || typeof imageDataUrl !== "string") {
       return NextResponse.json(
-        { error: "Champ 'imageUrl' ou 'imageDataUrl' requis" },
+        { error: "Champ 'imageDataUrl' requis (data URL base64)" },
         { status: 400 }
       );
     }
 
-    // predictYoloFromSpace accepte les data URLs ou les URLs HTTP
-    const result = await predictYoloFromSpace(imageInput, {
+    const result = await predictYoloFromSpace(imageDataUrl, {
       confidence_threshold,
       iou_threshold,
       show_confidence,

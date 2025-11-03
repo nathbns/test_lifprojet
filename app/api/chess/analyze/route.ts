@@ -6,20 +6,16 @@ export const runtime = "nodejs";
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { imageUrl } = body || {};
+    const { imageDataUrl } = body || {};
     
-    // Accepter imageUrl (depuis Blob Storage) ou imageDataUrl (data URL, pour compatibilité)
-    const imageInput = imageUrl || body.imageDataUrl;
-    
-    if (!imageInput || typeof imageInput !== "string") {
+    if (!imageDataUrl || typeof imageDataUrl !== "string") {
       return NextResponse.json(
-        { error: "Champ 'imageUrl' ou 'imageDataUrl' requis" },
+        { error: "Champ 'imageDataUrl' requis (data URL base64)" },
         { status: 400 }
       );
     }
 
-    // analyzeChessImage accepte les data URLs ou les URLs HTTP
-    const result = await analyzeChessImage(imageInput);
+    const result = await analyzeChessImage(imageDataUrl);
     return NextResponse.json(result);
   } catch (error: unknown) {
     console.error("Erreur analyse:", error);

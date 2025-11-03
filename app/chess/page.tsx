@@ -12,6 +12,7 @@ import { Highlighter } from "@/components/ui/highlighter"
 import type { Square } from "chess.js"
 import Image from "next/image"
 import { User } from "lucide-react"
+import { analyzeChessImage, preprocessChessImage } from "@/lib/gradio"
 
 // Fonction helper pour obtenir l'élément JSX d'une pièce capturée
 const getPieceSymbol = (piece: string, size: number = 20): React.ReactElement => {
@@ -52,7 +53,6 @@ export default function ChessPage() {
   }>({ white: [], black: [] })
   const [gameMode, setGameMode] = useState<"image" | "vs-human" | "vs-computer">("image")
   const [imageDataUrl, setImageDataUrl] = useState<string>("")
-  const [imageFile, setImageFile] = useState<File | null>(null)
   const [isDetecting, setIsDetecting] = useState<boolean>(false)
   const [detectedFen, setDetectedFen] = useState<string>("")
   const [detectionError, setDetectionError] = useState<string>("")
@@ -248,9 +248,6 @@ export default function ChessPage() {
 
   const handleFileSelect = (file: File) => {
     if (!file.type.startsWith('image/')) return
-    // Stocker le fichier original pour l'envoi via FormData
-    setImageFile(file)
-    // Aussi créer le data URL pour l'affichage
     const reader = new FileReader()
     reader.onload = () => setImageDataUrl(reader.result as string)
     reader.readAsDataURL(file)
@@ -266,7 +263,7 @@ export default function ChessPage() {
   }
 
   const handleDetectFen = async () => {
-    if (!imageDataUrl || !imageFile) return
+    if (!imageDataUrl) return
     
     setIsDetecting(true)
     setDetectionError("")
@@ -316,36 +313,8 @@ export default function ChessPage() {
       // Démarrer l'animation
       animationState.animationId = requestAnimationFrame(animateBlur)
       
-      // 1. Upload l'image vers Vercel Blob Storage
-      const uploadFormData = new FormData()
-      uploadFormData.append("image", imageFile)
-      
-      const uploadRes = await fetch("/api/upload", {
-        method: "POST",
-        body: uploadFormData,
-      })
-      
-      if (!uploadRes.ok) {
-        const errorData = await uploadRes.json()
-        throw new Error(errorData.error || "Erreur lors de l'upload de l'image")
-      }
-      
-      const { url: imageUrl } = await uploadRes.json()
-      
-      // 2. Utiliser l'URL pour le preprocessing
-      const preprocessRes = await fetch("/api/chess/preprocess", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageUrl }),
-      })
-      
-      if (!preprocessRes.ok) {
-        const errorData = await preprocessRes.json()
-        throw new Error(errorData.error || "Erreur lors du preprocessing")
-      }
-      
-      const preprocessData = await preprocessRes.json()
-      const preprocessedImageUrl = preprocessData.preprocessedImageUrl
+      // Lancer le preprocessing en parallèle (appel direct Gradio côté client)
+      const preprocessedImageUrl = await preprocessChessImage(imageDataUrl)
       
       // Le preprocessing est terminé, enregistrer la durée réelle
       animationState.actualDuration = Date.now() - startTime
@@ -368,18 +337,7 @@ export default function ChessPage() {
       // Étape 2: Analyse avec le modèle pour détecter le FEN
       // IMPORTANT: Utiliser l'image originale, pas l'image préprocessée
       setPreprocessingStep("Analyse avec le modèle...")
-      const analyzeRes = await fetch("/api/chess/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageUrl }),
-      })
-      
-      if (!analyzeRes.ok) {
-        const errorData = await analyzeRes.json()
-        throw new Error(errorData.error || "Erreur lors de l'analyse")
-      }
-      
-      const result = await analyzeRes.json()
+      const result = await analyzeChessImage(imageDataUrl)
       
       if (result.fen) {
         
@@ -977,7 +935,6 @@ ${moveHistory.map((move, idx) => {
                               className="absolute -top-2 -right-2 h-8 w-8 p-0 z-10"
                             onClick={() => {
                               setImageDataUrl("")
-                              setImageFile(null)
                               setDetectedFen("")
                               setDetectionError("")
                               setManualFen("")
