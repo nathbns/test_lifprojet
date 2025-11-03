@@ -8,7 +8,6 @@ import {Play, RotateCcw, X, Settings } from "lucide-react"
 import { FileUpload } from "@/components/ui/file-upload"
 import { Highlighter } from "@/components/ui/highlighter"
 import Image from "next/image"
-import { compressImage } from "@/lib/image-compression"
 
 interface YoloResult {
   result?: {
@@ -24,24 +23,26 @@ export default function YoloPage() {
   const [isLoading, setIsLoading] = React.useState(false)
   const [results, setResults] = React.useState<YoloResult | null>(null)
   const [imageDataUrl, setImageDataUrl] = React.useState<string>("")
+  const [imageFile, setImageFile] = React.useState<File | null>(null)
   const [threshold, setThreshold] = React.useState<number>(0.3)
   const [iou, setIou] = React.useState<number>(0.5)
   const [selectedModel, setSelectedModel] = React.useState<"yolov1" | "yolov3">("yolov1")
 
   const handleTest = async () => {
-    if (!imageDataUrl) return
+    if (!imageDataUrl || !imageFile) return
     setIsLoading(true)
     try {
+      // Utiliser FormData pour envoyer le fichier binaire (évite la surcharge base64)
+      const formData = new FormData()
+      formData.append("image", imageFile)
+      formData.append("confidence_threshold", threshold.toString())
+      formData.append("iou_threshold", iou.toString())
+      formData.append("show_confidence", "true")
+      formData.append("model", selectedModel)
+      
       const res = await fetch("/api/yolo", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          imageDataUrl,
-          confidence_threshold: threshold,
-          iou_threshold: iou,
-          show_confidence: true,
-          model: selectedModel,
-        }),
+        body: formData,
       })
       const json = await res.json()
       console.log("Résultats complets:", json)
@@ -62,24 +63,17 @@ export default function YoloPage() {
   const handleReset = () => {
     setResults(null)
     setImageDataUrl("")
+    setImageFile(null)
   }
 
-  const handleFileSelect = async (file: File) => {
+  const handleFileSelect = (file: File) => {
     if (!file.type.startsWith('image/')) return
-    
-    try {
-      // Compresser l'image avant de l'envoyer pour éviter l'erreur 413 (Payload Too Large)
-      // Paramètres optimisés pour garder une excellente qualité pour la détection YOLO
-      // 2560px max, qualité 0.92, max 3.5MB (limite Vercel ~4MB)
-      const compressedDataUrl = await compressImage(file, 2560, 2560, 0.92, 3.5)
-      setImageDataUrl(compressedDataUrl)
-    } catch (error) {
-      console.error("Erreur compression image:", error)
-      // En cas d'erreur, utiliser l'image originale
-      const reader = new FileReader()
-      reader.onload = () => setImageDataUrl(reader.result as string)
-      reader.readAsDataURL(file)
-    }
+    // Stocker le fichier original pour l'envoi via FormData
+    setImageFile(file)
+    // Aussi créer le data URL pour l'affichage
+    const reader = new FileReader()
+    reader.onload = () => setImageDataUrl(reader.result as string)
+    reader.readAsDataURL(file)
   }
 
   const handleFileUpload = (files: File[]) => {
@@ -129,7 +123,10 @@ export default function YoloPage() {
                         variant="destructive"
                         size="sm"
                         className="absolute -top-2 -right-2 h-8 w-8 p-0"
-                        onClick={() => setImageDataUrl("")}
+                        onClick={() => {
+                          setImageDataUrl("")
+                          setImageFile(null)
+                        }}
                       >
                         <X className="h-2 w-2" />
                       </Button>

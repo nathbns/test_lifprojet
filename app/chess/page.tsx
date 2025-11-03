@@ -12,7 +12,6 @@ import { Highlighter } from "@/components/ui/highlighter"
 import type { Square } from "chess.js"
 import Image from "next/image"
 import { User } from "lucide-react"
-import { compressImage } from "@/lib/image-compression"
 
 // Fonction helper pour obtenir l'élément JSX d'une pièce capturée
 const getPieceSymbol = (piece: string, size: number = 20): React.ReactElement => {
@@ -53,6 +52,7 @@ export default function ChessPage() {
   }>({ white: [], black: [] })
   const [gameMode, setGameMode] = useState<"image" | "vs-human" | "vs-computer">("image")
   const [imageDataUrl, setImageDataUrl] = useState<string>("")
+  const [imageFile, setImageFile] = useState<File | null>(null)
   const [isDetecting, setIsDetecting] = useState<boolean>(false)
   const [detectedFen, setDetectedFen] = useState<string>("")
   const [detectionError, setDetectionError] = useState<string>("")
@@ -246,22 +246,14 @@ export default function ChessPage() {
     }
   }, [moveHistory, manualFen, updateGameStatus])
 
-  const handleFileSelect = async (file: File) => {
+  const handleFileSelect = (file: File) => {
     if (!file.type.startsWith('image/')) return
-    
-    try {
-      // Compresser l'image avant de l'envoyer pour éviter l'erreur 413 (Payload Too Large)
-      // Paramètres optimisés pour garder une excellente qualité pour la détection FEN
-      // 2560px max, qualité 0.92, max 3.5MB (limite Vercel ~4MB)
-      const compressedDataUrl = await compressImage(file, 2560, 2560, 0.92, 3.5)
-      setImageDataUrl(compressedDataUrl)
-    } catch (error) {
-      console.error("Erreur compression image:", error)
-      // En cas d'erreur, utiliser l'image originale
-      const reader = new FileReader()
-      reader.onload = () => setImageDataUrl(reader.result as string)
-      reader.readAsDataURL(file)
-    }
+    // Stocker le fichier original pour l'envoi via FormData
+    setImageFile(file)
+    // Aussi créer le data URL pour l'affichage
+    const reader = new FileReader()
+    reader.onload = () => setImageDataUrl(reader.result as string)
+    reader.readAsDataURL(file)
   }
 
   const handleFileUpload = (files: File[]) => {
@@ -274,7 +266,7 @@ export default function ChessPage() {
   }
 
   const handleDetectFen = async () => {
-    if (!imageDataUrl) return
+    if (!imageDataUrl || !imageFile) return
     
     setIsDetecting(true)
     setDetectionError("")
@@ -324,11 +316,13 @@ export default function ChessPage() {
       // Démarrer l'animation
       animationState.animationId = requestAnimationFrame(animateBlur)
       
-      // Lancer le preprocessing en parallèle via API
+      // Lancer le preprocessing en parallèle via API avec FormData (binaire)
+      const preprocessFormData = new FormData()
+      preprocessFormData.append("image", imageFile)
+      
       const preprocessRes = await fetch("/api/chess/preprocess", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageDataUrl }),
+        body: preprocessFormData,
       })
       
       if (!preprocessRes.ok) {
@@ -360,10 +354,12 @@ export default function ChessPage() {
       // Étape 2: Analyse avec le modèle pour détecter le FEN
       // IMPORTANT: Utiliser l'image originale, pas l'image préprocessée
       setPreprocessingStep("Analyse avec le modèle...")
+      const analyzeFormData = new FormData()
+      analyzeFormData.append("image", imageFile)
+      
       const analyzeRes = await fetch("/api/chess/analyze", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageDataUrl }),
+        body: analyzeFormData,
       })
       
       if (!analyzeRes.ok) {
@@ -969,6 +965,7 @@ ${moveHistory.map((move, idx) => {
                               className="absolute -top-2 -right-2 h-8 w-8 p-0 z-10"
                             onClick={() => {
                               setImageDataUrl("")
+                              setImageFile(null)
                               setDetectedFen("")
                               setDetectionError("")
                               setManualFen("")
