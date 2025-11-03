@@ -6,57 +6,27 @@ export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   try {
-    // Accepter FormData (fichier binaire) ou JSON (data URL)
-    const contentType = req.headers.get("content-type") || "";
+    const body = await req.json();
+    const { imageUrl, confidence_threshold, iou_threshold, show_confidence, model } = body || {};
     
-    if (contentType.includes("multipart/form-data")) {
-      // Nouveau format: FormData avec fichier binaire
-      const formData = await req.formData();
-      const file = formData.get("image") as File;
-      const confidence_threshold = formData.get("confidence_threshold") ? parseFloat(formData.get("confidence_threshold") as string) : undefined;
-      const iou_threshold = formData.get("iou_threshold") ? parseFloat(formData.get("iou_threshold") as string) : undefined;
-      const show_confidence = formData.get("show_confidence") === "true" || formData.get("show_confidence") === "1";
-      const model = formData.get("model") as string | undefined;
-      
-      if (!file) {
-        return NextResponse.json(
-          { error: "Champ 'image' requis (fichier)" },
-          { status: 400 }
-        );
-      }
-      
-      // Convertir File en data URL temporairement pour compatibilité
-      const arrayBuffer = await file.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-      const base64 = buffer.toString('base64');
-      const dataUrl = `data:${file.type};base64,${base64}`;
-      
-      const result = await predictYoloFromSpace(dataUrl, {
-        confidence_threshold,
-        iou_threshold,
-        show_confidence,
-        model: model as "yolov1" | "yolov3" | undefined,
-      });
-      return NextResponse.json({ result });
-    } else {
-      // Ancien format: JSON avec data URL (pour compatibilité)
-      const body = await req.json();
-      const { imageDataUrl, confidence_threshold, iou_threshold, show_confidence, model } = body || {};
-      if (!imageDataUrl || typeof imageDataUrl !== "string") {
-        return NextResponse.json(
-          { error: "Champ 'imageDataUrl' requis (data URL base64)" },
-          { status: 400 }
-        );
-      }
-
-      const result = await predictYoloFromSpace(imageDataUrl, {
-        confidence_threshold,
-        iou_threshold,
-        show_confidence,
-        model,
-      });
-      return NextResponse.json({ result });
+    // Accepter soit imageUrl (depuis Blob Storage) soit imageDataUrl (data URL, pour compatibilité)
+    const imageInput = imageUrl || body.imageDataUrl;
+    
+    if (!imageInput || typeof imageInput !== "string") {
+      return NextResponse.json(
+        { error: "Champ 'imageUrl' ou 'imageDataUrl' requis" },
+        { status: 400 }
+      );
     }
+
+    // predictYoloFromSpace accepte les data URLs ou les URLs HTTP
+    const result = await predictYoloFromSpace(imageInput, {
+      confidence_threshold,
+      iou_threshold,
+      show_confidence,
+      model,
+    });
+    return NextResponse.json({ result });
   } catch (error: unknown) {
     console.error("Erreur YOLO:", error);
     const errorMessage = error instanceof Error ? error.message : "Erreur interne";

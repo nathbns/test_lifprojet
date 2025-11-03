@@ -32,17 +32,33 @@ export default function YoloPage() {
     if (!imageDataUrl || !imageFile) return
     setIsLoading(true)
     try {
-      // Utiliser FormData pour envoyer le fichier binaire (évite la surcharge base64)
-      const formData = new FormData()
-      formData.append("image", imageFile)
-      formData.append("confidence_threshold", threshold.toString())
-      formData.append("iou_threshold", iou.toString())
-      formData.append("show_confidence", "true")
-      formData.append("model", selectedModel)
+      // 1. Upload l'image vers Vercel Blob Storage
+      const uploadFormData = new FormData()
+      uploadFormData.append("image", imageFile)
       
+      const uploadRes = await fetch("/api/upload", {
+        method: "POST",
+        body: uploadFormData,
+      })
+      
+      if (!uploadRes.ok) {
+        const errorData = await uploadRes.json()
+        throw new Error(errorData.error || "Erreur lors de l'upload de l'image")
+      }
+      
+      const { url: imageUrl } = await uploadRes.json()
+      
+      // 2. Utiliser l'URL pour l'analyse YOLO
       const res = await fetch("/api/yolo", {
         method: "POST",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          imageUrl,
+          confidence_threshold: threshold,
+          iou_threshold: iou,
+          show_confidence: true,
+          model: selectedModel,
+        }),
       })
       const json = await res.json()
       console.log("Résultats complets:", json)

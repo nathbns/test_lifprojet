@@ -316,13 +316,27 @@ export default function ChessPage() {
       // Démarrer l'animation
       animationState.animationId = requestAnimationFrame(animateBlur)
       
-      // Lancer le preprocessing en parallèle via API avec FormData (binaire)
-      const preprocessFormData = new FormData()
-      preprocessFormData.append("image", imageFile)
+      // 1. Upload l'image vers Vercel Blob Storage
+      const uploadFormData = new FormData()
+      uploadFormData.append("image", imageFile)
       
+      const uploadRes = await fetch("/api/upload", {
+        method: "POST",
+        body: uploadFormData,
+      })
+      
+      if (!uploadRes.ok) {
+        const errorData = await uploadRes.json()
+        throw new Error(errorData.error || "Erreur lors de l'upload de l'image")
+      }
+      
+      const { url: imageUrl } = await uploadRes.json()
+      
+      // 2. Utiliser l'URL pour le preprocessing
       const preprocessRes = await fetch("/api/chess/preprocess", {
         method: "POST",
-        body: preprocessFormData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageUrl }),
       })
       
       if (!preprocessRes.ok) {
@@ -354,12 +368,10 @@ export default function ChessPage() {
       // Étape 2: Analyse avec le modèle pour détecter le FEN
       // IMPORTANT: Utiliser l'image originale, pas l'image préprocessée
       setPreprocessingStep("Analyse avec le modèle...")
-      const analyzeFormData = new FormData()
-      analyzeFormData.append("image", imageFile)
-      
       const analyzeRes = await fetch("/api/chess/analyze", {
         method: "POST",
-        body: analyzeFormData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageUrl }),
       })
       
       if (!analyzeRes.ok) {
