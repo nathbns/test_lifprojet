@@ -12,6 +12,7 @@ import { Highlighter } from "@/components/ui/highlighter"
 import type { Square } from "chess.js"
 import Image from "next/image"
 import { User } from "lucide-react"
+import { compressImage } from "@/lib/image-compression"
 
 // Fonction helper pour obtenir l'élément JSX d'une pièce capturée
 const getPieceSymbol = (piece: string, size: number = 20): React.ReactElement => {
@@ -245,11 +246,20 @@ export default function ChessPage() {
     }
   }, [moveHistory, manualFen, updateGameStatus])
 
-  const handleFileSelect = (file: File) => {
+  const handleFileSelect = async (file: File) => {
     if (!file.type.startsWith('image/')) return
-    const reader = new FileReader()
-    reader.onload = () => setImageDataUrl(reader.result as string)
-    reader.readAsDataURL(file)
+    
+    try {
+      // Compresser l'image avant de l'envoyer pour éviter l'erreur 413 (Payload Too Large)
+      const compressedDataUrl = await compressImage(file, 1920, 1920, 0.85, 3)
+      setImageDataUrl(compressedDataUrl)
+    } catch (error) {
+      console.error("Erreur compression image:", error)
+      // En cas d'erreur, utiliser l'image originale
+      const reader = new FileReader()
+      reader.onload = () => setImageDataUrl(reader.result as string)
+      reader.readAsDataURL(file)
+    }
   }
 
   const handleFileUpload = (files: File[]) => {

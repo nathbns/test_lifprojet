@@ -8,6 +8,7 @@ import {Play, RotateCcw, X, Settings } from "lucide-react"
 import { FileUpload } from "@/components/ui/file-upload"
 import { Highlighter } from "@/components/ui/highlighter"
 import Image from "next/image"
+import { compressImage } from "@/lib/image-compression"
 
 interface YoloResult {
   result?: {
@@ -63,11 +64,20 @@ export default function YoloPage() {
     setImageDataUrl("")
   }
 
-  const handleFileSelect = (file: File) => {
+  const handleFileSelect = async (file: File) => {
     if (!file.type.startsWith('image/')) return
-    const reader = new FileReader()
-    reader.onload = () => setImageDataUrl(reader.result as string)
-    reader.readAsDataURL(file)
+    
+    try {
+      // Compresser l'image avant de l'envoyer pour éviter l'erreur 413 (Payload Too Large)
+      const compressedDataUrl = await compressImage(file, 1920, 1920, 0.85, 3)
+      setImageDataUrl(compressedDataUrl)
+    } catch (error) {
+      console.error("Erreur compression image:", error)
+      // En cas d'erreur, utiliser l'image originale
+      const reader = new FileReader()
+      reader.onload = () => setImageDataUrl(reader.result as string)
+      reader.readAsDataURL(file)
+    }
   }
 
   const handleFileUpload = (files: File[]) => {
