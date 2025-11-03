@@ -1,18 +1,18 @@
 /**
  * Compresse et redimensionne une image pour réduire sa taille
  * @param file Le fichier image à compresser
- * @param maxWidth Largeur maximale en pixels (défaut: 1920)
- * @param maxHeight Hauteur maximale en pixels (défaut: 1920)
- * @param quality Qualité JPEG (0-1, défaut: 0.85)
- * @param maxSizeMB Taille maximale en MB (défaut: 3)
+ * @param maxWidth Largeur maximale en pixels (défaut: 2560)
+ * @param maxHeight Hauteur maximale en pixels (défaut: 2560)
+ * @param quality Qualité JPEG (0-1, défaut: 0.92)
+ * @param maxSizeMB Taille maximale en MB (défaut: 3.5)
  * @returns Promise<string> Data URL compressée
  */
 export async function compressImage(
   file: File,
-  maxWidth: number = 1920,
-  maxHeight: number = 1920,
-  quality: number = 0.85,
-  maxSizeMB: number = 3
+  maxWidth: number = 2560,
+  maxHeight: number = 2560,
+  quality: number = 0.92,
+  maxSizeMB: number = 3.5
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
@@ -41,6 +41,10 @@ export async function compressImage(
           return
         }
         
+        // Améliorer la qualité de rendu du canvas
+        ctx.imageSmoothingEnabled = true
+        ctx.imageSmoothingQuality = 'high'
+        
         // Dessiner l'image redimensionnée
         ctx.drawImage(img, 0, 0, width, height)
         
@@ -55,26 +59,44 @@ export async function compressImage(
             // Vérifier si la taille est acceptable
             const sizeMB = blob.size / (1024 * 1024)
             if (sizeMB > maxSizeMB) {
-              // Réessayer avec une qualité plus faible
-              canvas.toBlob(
-                (compressedBlob) => {
-                  if (!compressedBlob) {
-                    reject(new Error('Impossible de compresser l\'image'))
-                    return
-                  }
-                  
-                  const compressedReader = new FileReader()
-                  compressedReader.onload = () => {
-                    resolve(compressedReader.result as string)
-                  }
-                  compressedReader.onerror = () => {
-                    reject(new Error('Erreur lors de la lecture du blob compressé'))
-                  }
-                  compressedReader.readAsDataURL(compressedBlob)
-                },
-                'image/jpeg',
-                Math.max(0.5, quality - 0.15) // Réduire la qualité
-              )
+              // Essayer de réduire progressivement la qualité jusqu'à atteindre la taille cible
+              let currentQuality = quality
+              let attempts = 0
+              const maxAttempts = 5
+              
+              const tryCompress = () => {
+                canvas.toBlob(
+                  (compressedBlob) => {
+                    if (!compressedBlob) {
+                      reject(new Error('Impossible de compresser l\'image'))
+                      return
+                    }
+                    
+                    const compressedSizeMB = compressedBlob.size / (1024 * 1024)
+                    
+                    // Si la taille est acceptable ou qu'on a fait trop d'essais, accepter
+                    if (compressedSizeMB <= maxSizeMB || attempts >= maxAttempts) {
+                      const compressedReader = new FileReader()
+                      compressedReader.onload = () => {
+                        resolve(compressedReader.result as string)
+                      }
+                      compressedReader.onerror = () => {
+                        reject(new Error('Erreur lors de la lecture du blob compressé'))
+                      }
+                      compressedReader.readAsDataURL(compressedBlob)
+                    } else {
+                      // Réduire la qualité progressivement mais garder un minimum élevé
+                      attempts++
+                      currentQuality = Math.max(0.7, currentQuality - 0.03) // Minimum 0.7 pour préserver la qualité
+                      tryCompress()
+                    }
+                  },
+                  'image/jpeg',
+                  currentQuality
+                )
+              }
+              
+              tryCompress()
             } else {
               // Taille acceptable, convertir en data URL
               const resultReader = new FileReader()

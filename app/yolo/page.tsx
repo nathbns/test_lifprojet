@@ -69,7 +69,9 @@ export default function YoloPage() {
     
     try {
       // Compresser l'image avant de l'envoyer pour éviter l'erreur 413 (Payload Too Large)
-      const compressedDataUrl = await compressImage(file, 1920, 1920, 0.85, 3)
+      // Paramètres optimisés pour garder une excellente qualité pour la détection YOLO
+      // 2560px max, qualité 0.92, max 3.5MB (limite Vercel ~4MB)
+      const compressedDataUrl = await compressImage(file, 2560, 2560, 0.92, 3.5)
       setImageDataUrl(compressedDataUrl)
     } catch (error) {
       console.error("Erreur compression image:", error)
